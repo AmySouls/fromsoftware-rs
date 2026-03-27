@@ -6,12 +6,12 @@ use crate::{DLVector, dlkr::DLRunnableVmt};
 #[repr(C)]
 #[shared::singleton("CSTrophy")]
 /// Manages the awarding of achievements.
-pub struct CSTrophy {
+pub struct CSTrophyImp {
     vtable: isize,
     /// Holds a structure for concrete achievement granting per platform.
     pub trophy_platform: OwnedPtr<CSTrophyPlatformImp_forSteam>,
     unk10: isize,
-    unk18: isize,
+    unk18: u8,
 }
 
 #[repr(C)]
@@ -52,7 +52,8 @@ pub trait CSTrophyTitleInfoVmt {
 
     fn unk10(&mut self);
 
-    fn unk18(&mut self);
+    /// Retrieves the internal name (in JP) for the achievement
+    fn achievement_name_for_id(&self, achievement_id: &u32) -> *const u8;
 
     /// Retrieves the platform-specific achievement key associated with the supplied achievement.
     /// For steam this will be an ascii string which is immediately fed to
@@ -65,14 +66,18 @@ pub trait CSTrophyTitleInfoVmt {
 #[repr(C)]
 pub struct CSTrophyPlatformImp_forSteam {
     pub base: CSTrophyPlatformImp,
-    unk38: isize,
+    /// AppId these achievements are for
+    pub steam_app_id: isize,
     pub achievements: OwnedPtr<[CSTrophyPlatformImp_forSteamAchievementItem; 42]>,
-    unk48: u32,
-    unk4c: u8,
-    unk4d: u8,
-    unk50: CCallback,
-    unk70: CCallback,
-    unk90: CCallback,
+    /// Amount of the achievements this player unlocked
+    pub unlocked_count: u32,
+    /// Whether achievement info is initialized or not
+    pub is_initialized: u8,
+    /// Whether "master" achievement was unlocked or not
+    pub is_master_unlocked: u8,
+    pub on_user_stats_received_cb: CCallback<Self, [u8; 0x18]>,
+    pub on_user_stats_stored_cb: CCallback<Self, [u8; 0x10]>,
+    pub on_user_achievement_stored_cb: CCallback<Self, [u8; 0x98]>,
 }
 
 /// Steam backed implement for achievement granting.
@@ -105,7 +110,7 @@ mod test {
 
     #[test]
     fn proper_sizes() {
-        assert_eq!(0x20, size_of::<CSTrophy>());
+        assert_eq!(0x20, size_of::<CSTrophyImp>());
         assert_eq!(0x38, size_of::<CSTrophyPlatformImp>());
         assert_eq!(0x8, size_of::<CSTrophyTitleInfo>());
         assert_eq!(0xb0, size_of::<CSTrophyPlatformImp_forSteam>());
