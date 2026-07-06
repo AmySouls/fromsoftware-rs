@@ -1,8 +1,6 @@
-use bitfield::bitfield;
-use std::fmt::Display;
-use std::mem::transmute;
-use std::ptr::NonNull;
+use std::{borrow::Cow, fmt::Display, mem::transmute, ptr::NonNull};
 
+use bitfield::bitfield;
 use pelite::pe64::Pe;
 use vtable_rs::VPtr;
 
@@ -12,7 +10,7 @@ use crate::cs::player_game_data::{ChrAsm, PlayerGameData};
 use crate::cs::session_manager::SessionManagerPlayerEntryBase;
 use crate::cs::sp_effect::{NpcSpEffectEquipCtrl, SpecialEffect};
 use crate::cs::task::{CSEzRabbitNoUpdateTask, CSEzVoidTask};
-use crate::cs::world_chr_man::ChrSetEntry;
+use crate::cs::world_chr_man::{ChrSetEntry, WorldChrMan};
 use crate::cs::{BlockId, CSPlayerMenuCtrl, EquipmentDurabilityStatus, OptionalItemId};
 use crate::dltx::DLString;
 use crate::fd4::FD4Time;
@@ -21,8 +19,8 @@ use crate::position::{BlockPosition, HavokPosition};
 use crate::rva;
 use shared::program::Program;
 use shared::{
-    Aabb, F32Matrix4x4, F32ModelMatrix, F32Vector3, F32Vector4, OwnedPtr, Subclass, Superclass,
-    for_all_subclasses,
+    Aabb, F32Matrix4x4, F32ModelMatrix, F32Vector3, F32Vector4, FromStatic, InstanceError,
+    InstanceResult, OwnedPtr, Subclass, Superclass, for_all_subclasses,
 };
 
 mod module;
@@ -221,7 +219,7 @@ pub struct ChrIns {
     /// Optional squared override for the fade-out start distance.  <0 means no override.
     pub squared_fade_out_start_distance_override: f32,
     unk1b0: f32,
-    unk1b4: f32,
+    pub load_state: ChrLoadState,
     unk1b8: f32,
     unk1bc: f32,
     unk1c0: u32,
@@ -393,6 +391,33 @@ pub impl ChrInsExt for Subclass<ChrIns> {
 
 bitfield! {
     #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+    pub struct ChrLoadState(u32);
+    impl Debug;
+
+    /// Source of name: debug string "描画グループ"
+    pub draw_group_enabled, set_draw_group_enabled: 0;
+    /// Source of name: debug string "ヒット不安定"
+    pub unstable_hits, set_unstable_hits: 1;
+    /// Source of name: debug string "距離"
+    pub distance, set_distance: 2;
+    /// Source of name: debug string "バックリード無効"
+    pub backread_disabled, set_backread_disabled: 4;
+    /// Source of name: debug string "巡回リーダー無効"
+    pub patrol_leader_disabled, set_patrol_leader_disabled: 5;
+    /// Source of name: debug string "天候・時間帯"
+    pub weather_and_time_of_day, set_weather_and_time_of_day: 6;
+    /// Source of name: debug string "消滅死亡"
+    pub extinction_death, set_extinction_death: 7;
+    /// Source of name: debug string "PC近く"
+    pub near_pc, set_near_pc: 8;
+    /// Source of name: debug string "評価値足切り"
+    pub evaluation_value_cutoff, set_evaluation_value_cutoff: 9;
+    /// Source of name: debug string "評価値足切り"
+    pub host_inactive, set_host_inactive: 10;
+}
+
+bitfield! {
+    #[derive(Clone, Copy, PartialEq, Eq, Hash)]
     pub struct ChrInsFlags1c4(u8);
     impl Debug;
     /// Skips omission mode updates
@@ -429,6 +454,10 @@ bitfield! {
     #[derive(Clone, Copy, PartialEq, Eq, Hash)]
     pub struct ChrInsFlags1c6(u8);
     impl Debug;
+    /// Flags that prevents dead character from dropping item lot twice
+    pub has_dropped_item, set_had_dropped_item: 0;
+    /// Flags that prevents dead character from rewarding runes twice
+    pub has_dropped_runes, set_has_dropped_runes: 1;
     /// This flag is used to determine if the character tag (name, hp, etc) should be
     /// rendered on the side of the screen instead of above the character.
     /// Works only on friendly characters tags, not lock on ones.
@@ -906,6 +935,28 @@ pub struct PlayerIns {
     /// Will decrease `opacity_keyframes_timer` and set `ChrIns.opacity_keyframes_multiplier` to 0
     pub enable_arena_chr_rendering: bool,
     unk718: [u8; 0x27],
+}
+
+impl PlayerIns {
+    /// Gets the local player if held by [`WorldChrMan`]
+    ///
+    /// ## Safety
+    ///
+    /// The caller must ensure that no references to [`WorldChrMan`] are
+    /// held at the time of calling as this method mutably borrows [`WorldChrMan`]
+    /// to reach `main_player`.
+    pub unsafe fn local_player() -> InstanceResult<&'static mut Self> {
+        unsafe {
+            let Ok(world_chr_man) = WorldChrMan::instance() else {
+                return Err(InstanceError::NotFound(Cow::Borrowed("PlayerIns")));
+            };
+
+            world_chr_man
+                .main_player
+                .as_deref_mut()
+                .ok_or(InstanceError::NotFound(Cow::Borrowed("PlayerIns")))
+        }
+    }
 }
 
 #[repr(u32)]
