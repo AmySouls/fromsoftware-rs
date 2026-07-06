@@ -1,5 +1,6 @@
 mod action_button;
 mod auto_invade_point;
+mod dmg_man_impl;
 mod block_id;
 mod bullet_ins;
 mod bullet_manager;
@@ -58,9 +59,11 @@ mod world_chr_man_dbg;
 mod world_geom_man;
 mod world_scene_draw_param_manager;
 mod world_sfx_man;
+mod move_map_step;
 
 pub use action_button::*;
 pub use auto_invade_point::*;
+pub use dmg_man_impl::*;
 pub use block_id::*;
 pub use bullet_ins::*;
 pub use bullet_manager::*;
@@ -119,3 +122,4 @@ pub use world_chr_man_dbg::*;
 pub use world_geom_man::*;
 pub use world_scene_draw_param_manager::*;
 pub use world_sfx_man::*;
+pub use move_map_step::*;

@@ -23,7 +23,7 @@ pub struct NewMenuSystem {
     _unkd0: [u8; 0x18],
     _callback: usize,
     _finalize_callback_jobs: DLFixedVector<usize, 8>,
-    _unk140: bool,
+    pub enable_mouse_move_camera: bool,
     _unk144: u32,
     _unk148: u32,
     _unk150: u64,

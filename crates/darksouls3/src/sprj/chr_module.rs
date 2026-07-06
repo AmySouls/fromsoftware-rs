@@ -9,7 +9,7 @@ use super::ChrIns;
 pub struct ChrInsModuleContainer {
     _action_flag: u64,
     _behavior_script: u64,
-    _time_act: u64,
+    pub time_act: OwnedPtr<SprjChrTimeActModule>,
     pub data: OwnedPtr<ChrDataModule>,
     _resist: u64,
     _behavior: u64,
@@ -20,7 +20,7 @@ pub struct ChrInsModuleContainer {
     _talk: u64,
     _event: u64,
     _magic: u64,
-    _physics: u64,
+    pub physics: OwnedPtr<SprjChrPhysicsModule>,
     _fall: u64,
     _ladder: u64,
     _action_request: u64,
@@ -75,7 +75,9 @@ pub struct ChrDataModule {
     _unk104: u32,
     _unk108: [u8; 0x28],
     pub name: [u16; 8],
-    _unk140: [u8; 0x88],
+    _unk140: [u8; 0x80],
+    pub debug_flags: u8,
+    _unk181: [u8; 0x7],
 }
 
 impl ChrDataModule {
@@ -88,6 +90,46 @@ impl ChrDataModule {
             .unwrap_or(self.name.len());
         String::from_utf16(&self.name[..len]).unwrap_or_else(|_| "<invalid>".to_string())
     }
+}
+
+/// DS3 equivalent of ER's CSChrPhysicsModule.
+/// Layout differs from ER: orientation stored as pitch/yaw floats rather than a quaternion.
+#[repr(C)]
+pub struct SprjChrPhysicsModule {
+    _vftable: usize,
+    pub owner: NonNull<ChrIns>,
+    _unk10: [u8; 0x60], // 0x10..0x70
+    pub pitch: f32,     // +0x70 — positive = looking down, negative = looking up
+    pub yaw: f32,       // +0x74 — 0 = towards -z (same convention as ER)
+    _unk78: [u8; 0x08], // 0x78..0x80
+    pub position: [f32; 3], // +0x80 — XYZ world position
+}
+
+/// DS3 equivalent of ER's CSChrTimeActModule. Layout is identical; only the name prefix differs.
+#[repr(C)]
+pub struct SprjChrTimeActModule {
+    _vftable: usize,
+    pub owner: NonNull<ChrIns>,
+    _hvk_anim: usize,
+    _chr_tae_anim_event: usize,
+    /// Circular buffer of animations to play.
+    pub anim_queue: [SprjChrTimeActModuleAnim; 10],
+    /// Index of the next animation to play or update.
+    pub write_idx: u32,
+    /// Index of the last animation played or updated.
+    pub read_idx: u32,
+    _unkc8: u32,
+    _unkcc: u32,
+    _unkd0: u32,
+    _unkd4: u32,
+}
+
+#[repr(C)]
+pub struct SprjChrTimeActModuleAnim {
+    pub anim_id: i32,
+    pub play_time_from: f32,
+    pub play_time_to: f32,
+    pub anim_length: f32,
 }
 
 #[cfg(test)]

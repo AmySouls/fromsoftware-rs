@@ -24,7 +24,7 @@ pub struct CSChrTimeActModule {
 #[repr(C)]
 pub struct CSChrTimeActModuleAnim {
     pub anim_id: i32,
-    pub play_time: f32,
-    play_time2: f32,
+    pub play_time_from: f32,
+    pub play_time_to: f32,
     pub anim_length: f32,
 }

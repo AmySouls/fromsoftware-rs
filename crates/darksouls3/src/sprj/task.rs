@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 
 use shared::{OwnedPtr, RecurringTask, SharedTaskImp, program::Program};
 
-use crate::fd4::FD4BasicHashString;
+use crate::fd4::{FD4BasicHashString, FD4TaskData};
 use crate::rva;
 
 #[repr(C)]
@@ -20,13 +20,13 @@ static REGISTER_TASK_VA: LazyLock<u64> = LazyLock::new(|| {
 });
 
 // TODO: Track down exactly what DS3's FD4TaskData struct looks like.
-impl SharedTaskImp<SprjTaskGroupIndex, usize> for SprjTaskImp {
-    fn register_task_internal(&self, index: SprjTaskGroupIndex, task: &RecurringTask<usize>) {
+impl SharedTaskImp<SprjTaskGroupIndex, FD4TaskData> for SprjTaskImp {
+    fn register_task_internal(&self, index: SprjTaskGroupIndex, task: &RecurringTask<FD4TaskData>) {
         let register_task: extern "C" fn(
             &SprjTaskImp,
             SprjTaskGroupIndex,
             u64,
-            &RecurringTask<usize>,
+            &RecurringTask<FD4TaskData>,
         ) = unsafe { std::mem::transmute(*REGISTER_TASK_VA) };
         register_task(self, index, 0, task);
     }

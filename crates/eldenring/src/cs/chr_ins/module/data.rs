@@ -44,7 +44,7 @@ pub struct CSChrDataModule {
     unk170: [u8; 0x28],
     unk198: [u8; 0x3],
     // 2nd bit makes you undamageable
-    debug_flags: u8,
+    pub debug_flags: u8,
     unk19c: [u8; 0x8c],
     /// Name for character behavior.
     /// c0000 for player-like characters

@@ -45,7 +45,7 @@ pub struct WorldChrMan {
     pub debug_chr_set: ChrSet<ChrIns>,
 
     /// The local player.
-    pub main_player: Option<NonNull<PlayerIns>>,
+    pub main_player: Option<OwnedPtr<PlayerIns>>,
 
     /// Another player. Maybe the owner of the host world during multiplayer?
     _unk88: Option<NonNull<PlayerIns>>,

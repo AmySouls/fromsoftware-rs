@@ -5,7 +5,7 @@ use shared::{
     for_all_subclasses,
 };
 
-use super::{ChrInsModuleContainer, ChrSetEntry, PlayerGameData, WorldChrMan};
+use super::{ChrInsModuleContainer, ChrSetEntry, FieldInsHandle, PlayerGameData, WorldChrMan};
 use crate::{dlkr::DLAllocatorRef, fd4::FD4Time};
 
 #[repr(C)]
@@ -14,7 +14,7 @@ use crate::{dlkr::DLAllocatorRef, fd4::FD4Time};
 /// Source of name: RTTI
 pub struct ChrIns {
     _vftable: usize,
-    pub field_ins_handle: u32,
+    pub field_ins_handle: FieldInsHandle,
     _unk10: i64,
     pub chr_set_entry: NonNull<ChrSetEntry<ChrIns>>,
     _unk20: OwnedPtr<UnknownStruct<0xe0>>,
@@ -135,7 +135,7 @@ pub struct ChrIns {
     _pad11d1: [u8; 8],
     _unk1ed8: u64,
     _unk1ee0: u64,
-    _unk1ee8: u16,
+    pub debug_flags: u16,
     _unk1eea: u8,
     _unk1eec: u32,
     _unk1ef0: u32,
@@ -196,7 +196,7 @@ type ChrAttachSys = UnknownStruct<0x28>;
 #[derive(Subclass)]
 /// Source of name: RTTI
 pub struct PlayerIns {
-    pub super_chr_ins: ChrIns,
+    pub chr_ins: ChrIns,
     pub player_game_data: NonNull<PlayerGameData>,
     _unk1fa8: u64,
     _net_ai_manipulator: usize,
@@ -257,8 +257,11 @@ impl FromStatic for PlayerIns {
     unsafe fn instance() -> InstanceResult<&'static mut Self> {
         unsafe {
             WorldChrMan::instance()
-                .and_then(|man| man.main_player.ok_or(InstanceError::NotFound))
-                .map(|mut ptr| ptr.as_mut())
+                .and_then(|man| {
+                    man.main_player.as_mut()
+                        .map(|p| &mut **p)
+                        .ok_or(InstanceError::NotFound)
+                })
         }
     }
 }
@@ -267,7 +270,7 @@ impl FromStatic for PlayerIns {
 #[derive(Subclass)]
 /// Source of name: RTTI
 pub struct ReplayGhostIns {
-    pub super_chr_ins: ChrIns,
+    pub chr_ins: ChrIns,
 }
 
 #[repr(C)]

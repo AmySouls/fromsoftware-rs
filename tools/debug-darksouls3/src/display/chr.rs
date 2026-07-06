@@ -8,7 +8,7 @@ impl StatefulDebugDisplay for PlayerIns {
     type State = ChrInsState;
 
     fn render_debug_mut(&mut self, ui: &Ui, state: &mut Self::State) {
-        self.super_chr_ins.render_debug_mut(ui, state);
+        self.chr_ins.render_debug_mut(ui, state);
 
         ui.nested("PlayerGameData", unsafe { self.player_game_data.as_ref() });
     }

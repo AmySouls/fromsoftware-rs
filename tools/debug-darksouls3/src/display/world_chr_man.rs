@@ -86,7 +86,7 @@ where
                 let chr_ins = entry.chr.as_mut();
                 ui.header(format!("{} ##{:p}", chr_ins.id(), chr_ins), || {
                     let sup = chr_ins.superclass_mut();
-                    let state = state.chr_ins_states.get(sup.field_ins_handle);
+                    let state = state.chr_ins_states.get(sup.field_ins_handle.selector.0);
                     sup.render_debug_mut(ui, state);
                 });
             },

@@ -890,6 +890,16 @@ checksum = "e53debba6bda7a793e5f99b8dacf19e626084f525f7829104ba9898f367d85ff"
 [[package]]
 name = "nightreign"
 version = "0.13.0"
+dependencies = [
+ "bitfield",
+ "cxx-stl 4.4.0",
+ "encoding_rs",
+ "fromsoftware-shared 0.13.0",
+ "pelite",
+ "thiserror 1.0.69",
+ "vtable-rs",
+ "windows",
+]
 
 [[package]]
 name = "no-std-compat"

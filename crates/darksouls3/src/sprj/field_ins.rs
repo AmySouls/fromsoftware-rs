@@ -2,6 +2,8 @@ use std::{fmt, mem};
 
 use bitfield::bitfield;
 
+use super::BlockId;
+
 #[repr(u8)]
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum FieldInsType {
@@ -44,6 +46,19 @@ impl FieldInsSelector {
         // Safety: Rust can't construct an invalid selector, and we don't know
         // any game APIs that provide one.
         unsafe { mem::transmute(self.type_raw()) }
+    }
+}
+
+#[repr(C, align(8))]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FieldInsHandle {
+    pub selector: FieldInsSelector,
+    pub block_id: BlockId,
+}
+
+impl FieldInsHandle {
+    pub fn is_empty(&self) -> bool {
+        self.selector.0 == u32::MAX
     }
 }
 
