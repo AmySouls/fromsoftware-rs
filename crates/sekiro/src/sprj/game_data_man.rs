@@ -4,7 +4,7 @@ use pelite::pe64::Pe;
 use shared::{FromStatic, InstanceResult, OwnedPtr, Program, UnknownStruct};
 
 use super::{ItemId, PlayerGameData};
-use crate::{Vector, fd4::FD4Time, rva};
+use crate::{DLVector, fd4::FD4Time, rva};
 
 #[repr(C)]
 // Source of name: RTTI
@@ -65,7 +65,7 @@ pub struct GameDataMan {
     _unke8: u8,
     _unke9: [u8; 0x7],
     _unkf0: u16,
-    _unkf8: Vector<()>,
+    _unkf8: DLVector<()>,
     _unk118: UnknownStruct<0x28>,
     _unk140: u8,
     _unk148: u64,
@@ -101,7 +101,7 @@ impl FromStatic for GameDataMan {
         "GameDataMan".into()
     }
 
-    unsafe fn instance() -> InstanceResult<&'static mut Self> {
+    fn instance_ptr() -> InstanceResult<*mut Self> {
         unsafe { shared::load_static_indirect(rva::get().game_data_man_ptr) }
     }
 }

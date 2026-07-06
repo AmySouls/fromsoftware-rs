@@ -1,7 +1,7 @@
-use std::ptr::NonNull;
+use std::{borrow::Cow, ptr::NonNull};
 
-use crate::{Tree, param::CEREMONY_PARAM_ST, position::HavokPosition};
-use shared::{OwnedPtr, Subclass, Superclass};
+use crate::{DLMap, UnkDLTree, param::CEREMONY_PARAM_ST, position::HavokPosition, rva};
+use shared::{FromStatic, InstanceResult, OwnedPtr, Subclass, Superclass};
 
 use super::BlockId;
 
@@ -16,7 +16,21 @@ pub struct FieldArea {
     unk20: [u8; 0x80],
     // Flag to check if fast travel should be enabled.
     pub enable_fast_travel_event_flag: i32,
-    unka4: [u8; 0x5EC],
+    unka4: [u8; 0x3c],
+    pub map_place_name_id: i32,
+    pub save_map_name_id: i32,
+    pub current_play_region_id: u32,
+    unkec: [u8; 0x5A4],
+}
+
+impl FromStatic for FieldArea {
+    fn name() -> Cow<'static, str> {
+        "FieldArea".into()
+    }
+
+    fn instance_ptr() -> InstanceResult<*mut Self> {
+        unsafe { shared::load_static_indirect(rva::get().field_area_ptr) }
+    }
 }
 
 // Source of name: RTTI
@@ -81,13 +95,15 @@ impl WorldInfo {
             true => self
                 .world_grid_area_info()
                 .iter()
-                .flat_map(|a| a.blocks.iter())
-                .find(|b| b.block_id.0 == map.0)
-                .map(|b| b.block.as_ref()),
-            false => self
-                .world_block_info()
-                .iter()
-                .find(|b| b.block_id.0 == map.0),
+                .find_map(|a| a.blocks.find(map))
+                .map(|entry| entry.as_ref()),
+            false => {
+                let blocks = self.world_block_info();
+                let index = blocks
+                    .binary_search_by(|entry| entry.block_id.0.cmp(&map.0))
+                    .ok()?;
+                Some(&blocks[index])
+            }
         }
     }
 }
@@ -139,18 +155,11 @@ pub struct WorldGridAreaInfo {
     unk6c: [f32; 4],
     pub skybox_block_id: BlockId,
     pub skybox_block_info: NonNull<WorldBlockInfo>,
-    pub blocks: Tree<WorldGridAreaInfoBlockElement>,
-    unka0: Tree<()>,
+    pub blocks: DLMap<BlockId, OwnedPtr<WorldBlockInfo>>,
+    unka0: UnkDLTree<()>,
     unkb8: u64,
-    unkc0: Tree<()>,
+    unkc0: UnkDLTree<()>,
     unkd8: u64,
-}
-
-#[repr(C)]
-pub struct WorldGridAreaInfoBlockElement {
-    pub block_id: BlockId,
-    _pad4: u32,
-    pub block: OwnedPtr<WorldBlockInfo>,
 }
 
 // Source of name: RTTI

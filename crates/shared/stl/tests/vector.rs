@@ -171,3 +171,203 @@ fn vector_pop_back_calls_destructor() {
     assert_eq!(drop_count.load(Ordering::Relaxed), 2);
     assert_eq!(a.live_count(), 0);
 }
+
+#[test]
+fn vector_push_front_ordering() {
+    let mut v: Vector<i32, _> = Vector::new_in(alloc());
+    v.push_back(2);
+    v.push_back(3);
+    v.push_front(1);
+    v.push_front(0);
+    assert_eq!(&*v, &[0, 1, 2, 3]);
+}
+
+#[test]
+fn vector_push_front_triggers_grow() {
+    let mut v: Vector<i32, _> = Vector::new_in(alloc());
+    for i in 0..4 {
+        v.push_back(i);
+    }
+    assert_eq!(v.capacity(), 4);
+    v.push_front(99);
+    assert_eq!(v[0], 99);
+    assert_eq!(&v[1..], &[0, 1, 2, 3]);
+}
+
+#[test]
+fn vector_push_front_calls_destructor_on_drop() {
+    let drop_count = AtomicUsize::new(0);
+    static ALLOC_C: AtomicUsize = AtomicUsize::new(0);
+    let a = StdAlloc::new(&ALLOC_C);
+    {
+        let mut v: Vector<DropCount, _> = Vector::new_in(a.clone());
+        for i in 0..8 {
+            v.push_front(DropCount::new(&drop_count, i));
+        }
+    }
+    assert_eq!(drop_count.load(Ordering::Relaxed), 8);
+    assert_eq!(a.live_count(), 0);
+}
+
+#[test]
+fn vector_pop_front() {
+    let mut v: Vector<i32, _> = Vector::new_in(alloc());
+    for i in 0..4 {
+        v.push_back(i);
+    }
+    assert_eq!(v.pop_front(), Some(0));
+    assert_eq!(&*v, &[1, 2, 3]);
+    assert_eq!(v.pop_front(), Some(1));
+    assert_eq!(v.pop_front(), Some(2));
+    assert_eq!(v.pop_front(), Some(3));
+    assert_eq!(v.pop_front(), None);
+}
+
+#[test]
+fn vector_pop_front_no_double_drop() {
+    let drop_count = AtomicUsize::new(0);
+    static ALLOC_C: AtomicUsize = AtomicUsize::new(0);
+    let a = StdAlloc::new(&ALLOC_C);
+    {
+        let mut v: Vector<DropCount, _> = Vector::new_in(a.clone());
+        for i in 0..4 {
+            v.push_back(DropCount::new(&drop_count, i));
+        }
+        while v.pop_front().is_some() {}
+        assert_eq!(drop_count.load(Ordering::Relaxed), 4);
+    }
+    assert_eq!(drop_count.load(Ordering::Relaxed), 4);
+    assert_eq!(a.live_count(), 0);
+}
+
+#[test]
+fn vector_clear_on_empty_is_noop() {
+    let mut v: Vector<i32, _> = Vector::new_in(alloc());
+    v.clear();
+    assert!(v.is_empty());
+    assert_eq!(v.len(), 0);
+    assert_eq!(v.capacity(), 0);
+}
+
+#[test]
+fn vector_clear_makes_vector_empty() {
+    let mut v: Vector<i32, _> = Vector::new_in(alloc());
+    for i in 0..8 {
+        v.push_back(i);
+    }
+    v.clear();
+    assert!(v.is_empty());
+    assert_eq!(v.len(), 0);
+}
+
+#[test]
+fn vector_clear_retains_capacity() {
+    let mut v: Vector<i32, _> = Vector::new_in(alloc());
+    for i in 0..8 {
+        v.push_back(i);
+    }
+    let cap_before = v.capacity();
+    v.clear();
+    assert_eq!(
+        v.capacity(),
+        cap_before,
+        "clear must not release the buffer"
+    );
+}
+
+#[test]
+fn vector_clear_calls_element_destructors() {
+    let drop_count = AtomicUsize::new(0);
+    static ALLOC_C: AtomicUsize = AtomicUsize::new(0);
+    let a = StdAlloc::new(&ALLOC_C);
+    let mut v: Vector<DropCount, _> = Vector::new_in(a.clone());
+    for i in 0..16 {
+        v.push_back(DropCount::new(&drop_count, i));
+    }
+    assert_eq!(drop_count.load(Ordering::Relaxed), 0);
+    v.clear();
+    assert_eq!(
+        drop_count.load(Ordering::Relaxed),
+        16,
+        "clear must drop all elements"
+    );
+}
+
+#[test]
+fn vector_clear_keeps_buffer_allocation() {
+    static C: AtomicUsize = AtomicUsize::new(0);
+    let a = StdAlloc::new(&C);
+    let mut v: Vector<i32, _> = Vector::new_in(a.clone());
+    for i in 0..8 {
+        v.push_back(i);
+    }
+    assert_eq!(a.live_count(), 1);
+    v.clear();
+    assert_eq!(a.live_count(), 1, "buffer must still be live after clear");
+    drop(v);
+    assert_eq!(a.live_count(), 0);
+}
+
+#[test]
+fn vector_clear_then_reuse() {
+    let mut v: Vector<i32, _> = Vector::new_in(alloc());
+    for i in 0..8 {
+        v.push_back(i);
+    }
+    v.clear();
+    for i in 10..14 {
+        v.push_back(i);
+    }
+    assert_eq!(v.len(), 4);
+    assert_eq!(&*v, &[10, 11, 12, 13]);
+}
+
+#[test]
+fn vector_double_clear_is_safe() {
+    let mut v: Vector<i32, _> = Vector::new_in(alloc());
+    for i in 0..8 {
+        v.push_back(i);
+    }
+    v.clear();
+    v.clear();
+    assert!(v.is_empty());
+}
+
+#[test]
+fn vector_clear_no_leak() {
+    static C: AtomicUsize = AtomicUsize::new(0);
+    let a = StdAlloc::new(&C);
+    {
+        let mut v: Vector<i32, _> = Vector::new_in(a.clone());
+        for i in 0..64 {
+            v.push_back(i);
+        }
+        v.clear();
+    }
+    assert_eq!(
+        a.live_count(),
+        0,
+        "clear + drop must leave no live allocations"
+    );
+}
+
+#[test]
+fn vector_clear_no_double_drop_of_elements() {
+    let drop_count = AtomicUsize::new(0);
+    static ALLOC_C: AtomicUsize = AtomicUsize::new(0);
+    let a = StdAlloc::new(&ALLOC_C);
+    {
+        let mut v: Vector<DropCount, _> = Vector::new_in(a.clone());
+        for i in 0..8 {
+            v.push_back(DropCount::new(&drop_count, i));
+        }
+        v.clear();
+        assert_eq!(drop_count.load(Ordering::Relaxed), 8);
+    }
+    assert_eq!(
+        drop_count.load(Ordering::Relaxed),
+        8,
+        "drop after clear must not double-drop elements"
+    );
+    assert_eq!(a.live_count(), 0);
+}

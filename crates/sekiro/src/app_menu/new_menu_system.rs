@@ -2,7 +2,7 @@ use std::{borrow::Cow, ptr::NonNull, sync::atomic::AtomicI32};
 
 use shared::{FromStatic, OwnedPtr, Subclass, Superclass, UnknownPtr, UnknownStruct};
 
-use crate::{Vector, dlkr::DLAllocatorRef, dlut::DLFixedVector, rva, sprj::SprjScaleformValue};
+use crate::{DLVector, dlkr::DLAllocator, dlut::DLFixedVector, rva, sprj::SprjScaleformValue};
 
 #[repr(C)]
 // Source of name: RTTI
@@ -54,7 +54,7 @@ impl FromStatic for NewMenuSystem {
         "NewMenuSystem".into()
     }
 
-    unsafe fn instance() -> fromsoftware_shared::InstanceResult<&'static mut Self> {
+    fn instance_ptr() -> fromsoftware_shared::InstanceResult<*mut Self> {
         unsafe { shared::load_static_indirect(rva::get().app_menu_new_menu_system_ptr) }
     }
 }
@@ -77,11 +77,11 @@ pub struct MenuWindow {
     _scene_obj_proxy_1: SceneObjProxy,
     _scene_obj_proxy_2: SceneObjProxy,
     _unk218: u64,
-    _allocator: DLAllocatorRef,
+    _allocator: &'static DLAllocator,
     _unk228: u64,
     _unk230: u64,
     _unk238: u64,
-    _unk240: Vector<u8>,
+    _unk240: DLVector<u8>,
     _component_holder: ComponentProxy,
     _scaleform_value: SprjScaleformValue,
     _scene_obj_proxy_3: SceneObjProxy,

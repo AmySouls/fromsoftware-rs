@@ -2,11 +2,9 @@ use std::ffi::c_void;
 use std::sync::Once;
 use std::time::Duration;
 
-use hudhook::imgui::{Condition, Context, Io, Ui, sys as imgui_sys};
+use hudhook::imgui::{Condition, Context, Ui, sys as imgui_sys};
 use hudhook::windows::Win32::Foundation::HINSTANCE;
-use hudhook::{ImguiRenderLoop, MessageFilter, eject, hooks::dx12::ImguiDx12Hooks};
-use pelite::pe64::Pe;
-use rva::RVA_GLOBAL_FIELD_AREA;
+use hudhook::{ImguiRenderLoop, eject, hooks::dx12::ImguiDx12Hooks};
 
 use debug::*;
 use eldenring::cs::*;
@@ -14,9 +12,7 @@ use eldenring::{fd4::FD4ParamRepository, util::system::wait_for_system_init};
 use fromsoftware_shared::{FromStatic, program::Program};
 
 mod display;
-mod rva;
-
-use display::{DebugDisplay, StaticDebugger};
+use display::StaticDebugger;
 
 /// # Safety
 /// This is exposed this way such that libraryloader can call it. Do not call this yourself.
@@ -39,6 +35,7 @@ struct EldenRingDebugGui {
     scale: f32,
 
     // World
+    field_area: StaticDebugger<FieldArea>,
     event_flag: StaticDebugger<CSEventFlagMan>,
     world_chr: StaticDebugger<WorldChrMan>,
     world_geom: StaticDebugger<CSWorldGeomMan>,
@@ -110,23 +107,29 @@ impl ImguiRenderLoop for EldenRingDebugGui {
         unsafe {
             let ctx = imgui_sys::igGetCurrentContext();
             forward_imgui_context_on_reload(ctx);
+            let blocker = InputBlocker::get_instance();
+            forward_input_blocker_on_reload(blocker)
         }
         self.update_scale();
+        unsafe {
+            let blocker = InputBlocker::get_instance();
+            blocker
+                .install_hooks()
+                .expect("Failed to install input hook")
+        }
 
         // SAFETY: *do not* modify this function signature while the game is running.
         unsafe {
             render_live_reload(self, ui);
         }
     }
-
-    fn message_filter(&self, _io: &Io) -> MessageFilter {
-        MessageFilter::InputAll
-    }
 }
 
 #[libhotpatch::hotpatch]
 unsafe fn render_live_reload(gui: &mut EldenRingDebugGui, ui: &mut Ui) {
-    let program = Program::current();
+    let io = ui.io();
+    let blocker = InputBlocker::get_instance();
+    blocker.block_from_io(io);
 
     ui.window("Elden Ring Rust Bindings Debug")
         .position([0., 0.], Condition::FirstUseEver)
@@ -135,16 +138,7 @@ unsafe fn render_live_reload(gui: &mut EldenRingDebugGui, ui: &mut Ui) {
             ui.set_window_font_scale(gui.scale);
             let tabs = ui.tab_bar("main-tabs").unwrap();
             if let Some(item) = ui.tab_item("World") {
-                ui.header("FieldArea", || {
-                    if let Some(field_area) = unsafe {
-                        (*(program.rva_to_va(RVA_GLOBAL_FIELD_AREA).unwrap()
-                            as *const *const FieldArea))
-                            .as_ref()
-                    } {
-                        field_area.render_debug(ui);
-                    }
-                });
-
+                gui.field_area.render_debug(ui);
                 gui.event_flag.render_debug(ui);
                 gui.world_chr.render_debug(ui);
                 gui.world_geom.render_debug(ui);
@@ -202,4 +196,12 @@ unsafe fn render_live_reload(gui: &mut EldenRingDebugGui, ui: &mut Ui) {
 unsafe fn forward_imgui_context_on_reload(ctx: *mut imgui_sys::ImGuiContext) {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| unsafe { imgui_sys::igSetCurrentContext(ctx) });
+}
+
+#[libhotpatch::hotpatch]
+unsafe fn forward_input_blocker_on_reload(blocker: &'static InputBlocker) {
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        InputBlocker::forward_instance(blocker);
+    });
 }

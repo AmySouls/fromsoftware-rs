@@ -8,6 +8,13 @@ use super::{DebugDisplay, DisplayUiExt};
 impl DebugDisplay for FieldArea {
     fn render_debug(&self, ui: &Ui) {
         ui.nested("World Info Owner", &self.world_info_owner);
+        ui.display(
+            "Enable Fast Travel Event Flag",
+            self.enable_fast_travel_event_flag,
+        );
+        ui.display("Map Place Name ID", self.map_place_name_id);
+        ui.display("Save Map Name ID", self.save_map_name_id);
+        ui.display("Current Play Region ID", self.current_play_region_id);
     }
 }
 
@@ -37,11 +44,9 @@ impl DebugDisplay for WorldInfoOwner {
                     format!("World Grid Area Info {}", entry.base.block_id),
                     || {
                         ui.list("Blocks", entry.blocks.iter(), |ui, _i, block_entry| {
-                            ui.header(format!("World Block Info {}", block_entry.block_id), || {
-                                ui.display(
-                                    "Center physics coords",
-                                    block_entry.block.physics_center,
-                                );
+                            let (block_id, data) = block_entry.into();
+                            ui.header(format!("World Block Info {}", block_id), || {
+                                ui.display("Center physics coords", data.physics_center);
                             });
                         });
                     },
