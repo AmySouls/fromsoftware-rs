@@ -257,7 +257,7 @@ impl PlayerIns {
     /// to reach `main_player`.
     pub unsafe fn local_player() -> InstanceResult<&'static mut Self> {
         unsafe {
-            let Ok(world_chr_man) = WorldChrMan::instance() else {
+            let Ok(world_chr_man) = WorldChrMan::instance_mut() else {
                 return Err(InstanceError::NotFound(Cow::Borrowed("PlayerIns")));
             };
 

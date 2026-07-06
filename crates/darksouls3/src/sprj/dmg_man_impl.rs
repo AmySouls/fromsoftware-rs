@@ -12,7 +12,7 @@ pub struct DmgManImpl {
 impl FromStatic for DmgManImpl {
     fn name() -> Cow<'static, str> { "DmgManImpl".into() }
 
-    unsafe fn instance() -> InstanceResult<&'static mut Self> {
+    fn instance_ptr() -> InstanceResult<*mut Self> {
         unsafe { shared::load_static_indirect::<Self>(0x477DAC0) }
     }
 }

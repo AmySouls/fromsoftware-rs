@@ -5,7 +5,7 @@ use bitfield::bitfield;
 use pelite::pe64::Pe;
 use shared::{F32Vector4, FromStatic, InstanceError, InstanceResult, OwnedPtr, program::Program};
 
-use crate::dlkr::{DLAllocatorBase, DLPlainLightMutex};
+use crate::dlkr::{DLAllocator, DLPlainLightMutex};
 use super::HavokPosition;
 
 /// DS3 equivalent of ER's RendMan.
@@ -27,7 +27,7 @@ impl FromStatic for SprjRendMan {
         "RendMan".into()
     }
 
-    unsafe fn instance() -> InstanceResult<&'static mut Self> {
+    fn instance_ptr() -> InstanceResult<*mut Self> {
         unsafe { shared::load_static_indirect::<Self>(0x4796298) }
     }
 }
@@ -130,12 +130,12 @@ impl SprjEzDraw {
 #[repr(C)]
 pub struct FD4HkEzDrawCommandBuffer {
     vftable: usize,
-    pub buffer_allocator: NonNull<DLAllocatorBase>,
+    pub buffer_allocator: NonNull<DLAllocator>,
     pub initial_size: usize,
     pub capacity: usize,
     pub buffer_start: NonNull<u8>,
     pub write_ptr: NonNull<u8>,
-    pub draw_state_allocator: NonNull<DLAllocatorBase>,
+    pub draw_state_allocator: NonNull<DLAllocator>,
     pub ez_draw_context: NonNull<FD4HkEzDrawContext>,
     pub ez_draw_state: OwnedPtr<FD4HkEzDrawState>,
 }
@@ -149,7 +149,7 @@ pub struct FD4HkEzDrawContext {
     unk20: usize,
     unk28: bool,
     unk2c: u32,
-    unk30: NonNull<DLAllocatorBase>,
+    unk30: NonNull<DLAllocator>,
 }
 
 #[repr(C)]

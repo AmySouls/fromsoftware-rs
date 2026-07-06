@@ -14,7 +14,7 @@ pub struct CSMouseMan {
 impl FromStatic for CSMouseMan {
     fn name() -> Cow<'static, str> { "CSMouseMan".into() }
 
-    unsafe fn instance() -> InstanceResult<&'static mut Self> {
+    fn instance_ptr() -> InstanceResult<*mut Self> {
         unsafe { shared::load_static_indirect::<Self>(0x442e028) }
     }
 }

@@ -12,7 +12,7 @@ pub struct FD4PadManager {
 impl FromStatic for FD4PadManager {
     fn name() -> Cow<'static, str> { "FD4PadManager".into() }
 
-    unsafe fn instance() -> InstanceResult<&'static mut Self> {
+    fn instance_ptr() -> InstanceResult<*mut Self> {
         unsafe { shared::load_static_indirect::<Self>(0x4707d48) }
     }
 }
