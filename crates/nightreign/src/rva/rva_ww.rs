@@ -9,7 +9,7 @@ use super::RvaBundle;
 /// These are populated from `mapper-profile.toml` in the root of this package
 /// using `tools/binary-generator`.
 pub const RVAS: RvaBundle = RvaBundle {
-    register_task: 0xfec510,
+    register_task: 0xfec580,
     cs_ez_draw_draw_line: 0x27d2140,
     cs_ez_draw_draw_capsule: 0x2701f0,
     cs_ez_draw_draw_sphere: 0x27d2290,

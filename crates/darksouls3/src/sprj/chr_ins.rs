@@ -261,11 +261,13 @@ impl PlayerIns {
                 return Err(InstanceError::NotFound(Cow::Borrowed("PlayerIns")));
             };
 
-            let Some(mut player) = world_chr_man.main_player else {
+            if world_chr_man.main_player.is_none() {
                 return Err(InstanceError::NotFound(Cow::Borrowed("PlayerIns")));
             };
 
-            Ok(player.as_mut())
+            let player = world_chr_man.main_player.as_mut();
+
+            Ok(player.unwrap())
         }
     }
 }

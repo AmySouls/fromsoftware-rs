@@ -20,6 +20,7 @@ impl GameVersion {
     fn from_metadata(product: &str, lang_id: u16, version: &str) -> Option<Self> {
         match (product, lang_id, version) {
             ("ELDEN RING NIGHTREIGN", LANG_ID_EN, "1.3.2.0") => Some(Self::Ww),
+            ("ELDEN RING NIGHTREIGN", LANG_ID_EN, "1.3.3.0") => Some(Self::Ww),
             _ => None,
         }
     }
