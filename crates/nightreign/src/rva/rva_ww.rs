@@ -10,8 +10,8 @@ use super::RvaBundle;
 /// using `tools/binary-generator`.
 pub const RVAS: RvaBundle = RvaBundle {
     register_task: 0xfec580,
-    cs_ez_draw_draw_line: 0x27d2140,
+    cs_ez_draw_draw_line: 0x27D21B0,
     cs_ez_draw_draw_capsule: 0x2701f0,
-    cs_ez_draw_draw_sphere: 0x27d2290,
-    cs_ez_draw_draw_wedge: 0x27d19c0,
+    cs_ez_draw_draw_sphere: 0x27D2300,
+    cs_ez_draw_draw_wedge: 0x27D1A30,
 };
