@@ -215,6 +215,18 @@ pub struct PlayerGameData {
     unkab4: [u8; 0x34],
 }
 
+impl PlayerGameData {
+    /// Returns the character's name.
+    pub fn character_name(&self) -> String {
+        let length = self
+            .character_name
+            .iter()
+            .position(|c| *c == 0)
+            .unwrap_or(self.character_name.len());
+        String::from_utf16_lossy(&self.character_name[..length])
+    }
+}
+
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SellRegion {
