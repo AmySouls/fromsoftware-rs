@@ -7,7 +7,7 @@ use bitfield::bitfield;
 
 use crate::{
     cs::{AiIns, CSAiFunc},
-    dlkr::DLAllocatorBase,
+    dlkr::DLAllocator,
     dltx::{DLString, DLUTF16StringKind},
     rva, Deque, Tree, Vector,
 };
