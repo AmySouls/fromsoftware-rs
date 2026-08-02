@@ -19,7 +19,8 @@ pub struct ChrIns {
     pub chr_ctrl: OwnedPtr<ChrCtrl>,
     unk68: [u8; 0x150],
     pub module_container: OwnedPtr<ChrInsModuleContainer>,
-    // TODO: rest
+    unk0x1c0: [u8; 0x3E0],
+    //..
 }
 
 impl ChrIns {
@@ -65,11 +66,19 @@ impl ChrRes {
 pub struct ChrCtrl {
     unk0: [u8; 0xf0],
     pub flags: u8,
-    // TODO: rest
+    //..
+}
+
+#[repr(C)]
+pub struct PlayerGameData {
+    unk0: [u8; 0x9C],
+    pub character_name: [u16; 17],
+    //..
 }
 
 #[repr(C)]
 pub struct PlayerIns {
     pub chr_ins: ChrIns,
-    _unk: [u8; 0x200], // 0x7a0 total - 0x5a0 (sizeof ChrIns)
+    pub player_game_data: *const PlayerGameData,
+    _unk: [u8; 0x1F8], // 0x7a0 total - 0x5a0 (sizeof ChrIns)
 }

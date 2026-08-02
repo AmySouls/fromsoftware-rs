@@ -22,7 +22,7 @@ impl DebugDisplay for CSChrTimeActModule {
                 ui.text(entry.anim_id.to_string());
 
                 ui.table_next_column();
-                ui.text(entry.play_time.to_string());
+                ui.text(entry.play_time_from.to_string());
 
                 ui.table_next_column();
                 ui.text(entry.anim_length.to_string());
@@ -33,7 +33,7 @@ impl DebugDisplay for CSChrTimeActModule {
         ui.header("Current Anim Info", || {
             let current_anim_info = &self.anim_queue[self.read_idx as usize];
             ui.display("Anim ID", current_anim_info.anim_id);
-            ui.display("Play Time", current_anim_info.play_time);
+            ui.display("Play Time", current_anim_info.play_time_from);
             ui.display("Anim Length", current_anim_info.anim_length);
         });
     }
