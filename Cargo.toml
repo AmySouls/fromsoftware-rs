@@ -95,6 +95,7 @@ codegen-units = 1
 panic = "abort"
 opt-level = "z"
 
+
 [profile.ci]
 inherits = "dev"
 debug = false

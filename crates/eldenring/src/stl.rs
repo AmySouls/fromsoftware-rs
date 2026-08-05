@@ -33,9 +33,222 @@ pub type UnkDLTree<V> =
     fromsoftware_shared_stl::RbTree<V, &'static DLAllocator, fromsoftware_shared_stl::Less>;
 
 #[repr(C)]
+pub struct DoublyLinkedListNode<T> {
+    pub next: NonNull<DoublyLinkedListNode<T>>,
+    pub previous: NonNull<DoublyLinkedListNode<T>>,
+    pub value: T,
+}
+
+#[repr(C)]
+pub struct DoublyLinkedList<T> {
+    allocator: usize,
+    pub head: NonNull<DoublyLinkedListNode<T>>,
+    pub count: u64,
+}
+
+impl<T> DoublyLinkedList<T> {
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        let mut count = self.count;
+        let mut current = unsafe { self.head.as_ref() };
+
+        std::iter::from_fn(move || {
+            current = unsafe { current.next.as_ref() };
+            if count == 0 {
+                None
+            } else {
+                count -= 1;
+                Some(&current.value)
+            }
+        })
+    }
+
+    pub fn len(&self) -> usize {
+        self.count as usize
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+#[repr(C)]
 pub struct ChainingMap<K: Ord, V> {
     base: DLMap<K, NonNull<ChainingMapBucketEntry<V>>>,
     buckets: OwnedPtr<ArrayWithHeader<ChainingMapBucketEntry<V>>>,
+}
+
+#[repr(C)]
+pub struct Tree<T> {
+    allocator: usize,
+    head: NonNull<TreeNode<T>>,
+    size: usize,
+}
+
+impl<T> Tree<T> {
+    pub fn len(&self) -> usize {
+        self.size
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &mut T> {
+        let mut current = unsafe {
+            let head = self.head;
+            let root = head.as_ref().parent;
+            let min = Self::min_node(root);
+            if min == head { None } else { Some(min) }
+        };
+
+        std::iter::from_fn(move || {
+            let mut node = current?;
+            unsafe {
+                let node_ref = node.as_mut();
+                let value_ref = &mut node_ref.value;
+
+                // Advance current to next in-order node
+                current = Self::next_inorder(node, self.head);
+
+                Some(value_ref)
+            }
+        })
+    }
+
+    /// Finds the minimum (leftmost) node in a subtree.
+    unsafe fn min_node(mut node: NonNull<TreeNode<T>>) -> NonNull<TreeNode<T>> {
+        unsafe {
+            while node.as_ref().is_nil == 0 && node.as_ref().left.as_ref().is_nil == 0 {
+                node = node.as_ref().left;
+            }
+        }
+        node
+    }
+
+    /// Returns the next in-order node from the given node.
+    /// `head` is the sentinel node.
+    unsafe fn next_inorder(
+        mut node: NonNull<TreeNode<T>>,
+        head: NonNull<TreeNode<T>>,
+    ) -> Option<NonNull<TreeNode<T>>> {
+        unsafe {
+            if node.as_ref().right.as_ref().is_nil == 0 {
+                // Go to the leftmost node in the right subtree
+                Some(Self::min_node(node.as_ref().right))
+            } else {
+                // Walk up the tree until we find a node that is a left child
+                loop {
+                    let parent = node.as_ref().parent;
+                    if parent == head || node != parent.as_ref().right {
+                        return if parent == head { None } else { Some(parent) };
+                    }
+                    node = parent;
+                }
+            }
+        }
+    }
+}
+
+#[repr(C)]
+pub struct TreeNode<T> {
+    left: NonNull<TreeNode<T>>,
+    parent: NonNull<TreeNode<T>>,
+    right: NonNull<TreeNode<T>>,
+    black_red: u8,
+    is_nil: u8,
+    value: T,
+}
+
+#[repr(C)]
+pub struct ChainingTree<K, V> {
+    base: Tree<Pair<K, ChainingMapBucketEntry<V>>>,
+    buckets: OwnedPtr<ArrayWithHeader<ChainingMapBucketEntry<V>>>,
+}
+
+#[repr(C)]
+pub struct Pair<K, V> {
+    pub key: K,
+    pub value: V,
+}
+
+impl<K, V> ChainingTree<K, V> {
+    pub fn len(&self) -> usize {
+        self.base.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Iterates over all key-value pairs, including all values in collision chains.
+    /// Returns an iterator that yields `(&K, &V)` for each entry.
+    pub fn iter(&self) -> impl Iterator<Item = (&K, &V)> {
+        self.base.iter().flat_map(|pair| {
+            let key = &pair.key;
+            pair.value.iter().map(move |value| (key, value))
+        })
+    }
+
+    pub fn buckets(&self) -> &[ChainingMapBucketEntry<V>] {
+        unsafe { self.buckets.as_slice() }
+    }
+
+    /// Iterates over all key-value pairs mutably, including all values in collision chains.
+    /// Returns an iterator that yields `(&K, &mut V)` for each entry.
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&K, &mut V)> {
+        self.base.iter().flat_map(|pair| {
+            let key = &pair.key;
+            pair.value.iter_mut().map(move |value| (key, value))
+        })
+    }
+
+    /// Iterates over keys and their collision chain heads.
+    /// Use this if you need to iterate collision chains separately.
+    pub fn iter_chains(&self) -> impl Iterator<Item = (&K, &ChainingMapBucketEntry<V>)> {
+        self.base.iter().map(|pair| (&pair.key, &pair.value))
+    }
+}
+
+#[repr(C)]
+pub struct ChainingMapBucketEntry<T> {
+    pub data: T,
+    pub next: Option<NonNull<ChainingMapBucketEntry<T>>>,
+}
+
+impl<T> ChainingMapBucketEntry<T> {
+    /// Returns the number of entries in this collision chain.
+    pub fn chain_len(&self) -> usize {
+        self.iter().count()
+    }
+
+    /// Checks if this is the only entry in the chain (no next pointer).
+    pub fn is_singleton(&self) -> bool {
+        self.next.is_none()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        let mut current = Some(NonNull::from(self));
+        std::iter::from_fn(move || {
+            let node = current?;
+            unsafe {
+                let node_ref = node.as_ref();
+                current = node_ref.next;
+                Some(&node_ref.data)
+            }
+        })
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        let mut current = Some(NonNull::from(self));
+        std::iter::from_fn(move || {
+            let mut node = current?;
+            unsafe {
+                let node_ref = node.as_mut();
+                current = node_ref.next;
+                Some(&mut node_ref.data)
+            }
+        })
+    }
 }
 
 impl<K: Ord, V> ChainingMap<K, V> {
@@ -91,47 +304,84 @@ impl<K: Ord, V> ChainingMap<K, V> {
 }
 
 #[repr(C)]
-pub struct ChainingMapBucketEntry<T> {
-    pub data: T,
-    pub next: Option<NonNull<ChainingMapBucketEntry<T>>>,
+pub struct BasicVector<T>
+where
+    T: Sized,
+{
+    pub begin: Option<NonNull<T>>,
+    pub end: Option<NonNull<T>>,
+    pub capacity: Option<NonNull<T>>,
 }
 
-impl<T> ChainingMapBucketEntry<T> {
-    /// Returns the number of entries in this collision chain.
-    pub fn chain_len(&self) -> usize {
-        self.iter().count()
+impl<T> BasicVector<T>
+where
+    T: Sized,
+{
+    pub fn items(&self) -> &[T] {
+        let Some(start) = self.begin else {
+            return &mut [];
+        };
+
+        let end = self.end.unwrap();
+        let count = (end.as_ptr() as usize - start.as_ptr() as usize) / size_of::<T>();
+
+        unsafe { std::slice::from_raw_parts(start.as_ptr(), count) }
     }
 
-    /// Checks if this is the only entry in the chain (no next pointer).
-    pub fn is_singleton(&self) -> bool {
-        self.next.is_none()
+    pub fn items_mut(&mut self) -> &mut [T] {
+        let Some(start) = self.begin else {
+            return &mut [];
+        };
+
+        let end = self.end.unwrap();
+        let count = (end.as_ptr() as usize - start.as_ptr() as usize) / size_of::<T>();
+
+        unsafe { std::slice::from_raw_parts_mut(start.as_ptr(), count) }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
-        let mut current = Some(NonNull::from(self));
-        std::iter::from_fn(move || {
-            let node = current?;
-            unsafe {
-                let node_ref = node.as_ref();
-                current = node_ref.next;
-                Some(&node_ref.data)
-            }
-        })
+    pub fn len(&self) -> usize {
+        let Some(end) = self.end else {
+            return 0;
+        };
+
+        let Some(start) = self.begin else {
+            return 0;
+        };
+
+        (end.as_ptr() as usize - start.as_ptr() as usize) / size_of::<T>()
     }
 
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
-        let mut current = Some(NonNull::from(self));
-        std::iter::from_fn(move || {
-            let mut node = current?;
-            unsafe {
-                let node_ref = node.as_mut();
-                current = node_ref.next;
-                Some(&mut node_ref.data)
-            }
-        })
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
+#[repr(C)]
+pub struct Vector<T>
+where
+    T: Sized,
+{
+    allocator: NonNull<DLAllocator>,
+    pub base: BasicVector<T>,
+}
+
+impl<T> Vector<T> {
+    pub fn items(&self) -> &[T] {
+        self.base.items()
+    }
+
+    pub fn items_mut(&mut self) -> &mut [T] {
+        self.base.items_mut()
+    }
+
+    pub fn len(&self) -> usize {
+        self.base.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.base.is_empty()
+    }
+}
 #[repr(C)]
 pub struct CSFixedList<T, const N: usize>
 where
@@ -238,5 +488,89 @@ impl AllocationHeader {
     /// Checks if this header is valid by comparing self_ptr to actual location.
     pub fn is_valid(&self) -> bool {
         std::ptr::eq(self.self_ptr.as_ptr(), self)
+    }
+}
+
+#[repr(C)]
+pub struct Deque<T> {
+    pub allocator: usize,
+
+    /// Seemingly has something to do with iterators?
+    pub proxy: *const std::ffi::c_void,
+
+    /// Array of pointers to blocks with pointers to T
+    pub blocks: *mut *mut T,
+
+    /// Number of blocks
+    pub block_count: usize,
+
+    // Logical offset of the first element
+    pub offset: usize,
+
+    /// Number of T actually contained.
+    pub element_count: usize,
+}
+
+impl<T> Deque<T> {
+    pub fn iter(&self) -> DequeIter<'_, T> {
+        DequeIter {
+            deque: self,
+            current: 0,
+        }
+    }
+
+    // Emulate whatever MSVC does to determine the number of pointers to T in every block.
+    const fn block_size() -> usize {
+        let size = std::mem::size_of::<T>();
+        if size < 8 {
+            16
+        } else if size <= 64 {
+            16 / size
+        } else {
+            1
+        }
+    }
+}
+
+pub struct DequeIter<'a, T> {
+    deque: &'a Deque<T>,
+    current: usize,
+}
+
+impl<'a, T> Iterator for DequeIter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current >= self.deque.element_count {
+            return None;
+        }
+
+        let block_size = Deque::<T>::block_size();
+
+        // Calculate the absolute offset from the start of the map
+        let total_offset = self.deque.offset + self.current;
+
+        // Identify which block and which index within that block
+        // MSVC uses a circular buffer for the map
+        let block_idx = (total_offset / block_size) % self.deque.block_count;
+        let local_idx = total_offset % block_size;
+
+        unsafe {
+            // Navigate the map to find the block pointer
+            let block_ptr_ptr = self.deque.blocks.add(block_idx);
+            let block_ptr = *block_ptr_ptr;
+
+            // Offset into the data block
+            let element_ptr = block_ptr.add(local_idx);
+
+            self.current += 1;
+            Some(&*element_ptr)
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.deque.element_count - self.current;
+
+        (remaining, Some(remaining))
     }
 }
