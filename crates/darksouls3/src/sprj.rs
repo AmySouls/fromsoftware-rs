@@ -1,3 +1,4 @@
+mod ai;
 mod camera;
 mod chr_ins;
 mod dmg_man_impl;
@@ -24,6 +25,7 @@ mod world_info;
 mod flipper;
 mod move_map_step;
 
+pub use ai::*;
 pub use camera::*;
 pub use chr_ins::*;
 pub use dmg_man_impl::*;
